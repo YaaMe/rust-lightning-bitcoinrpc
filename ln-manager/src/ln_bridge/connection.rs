@@ -1,7 +1,6 @@
 use bytes::BufMut;
 
 use futures::future;
-use futures::{Sink, Poll};
 use futures::{FutureExt, StreamExt, SinkExt};
 // use futures::task::Poll;
 use futures::channel::mpsc;
@@ -18,7 +17,7 @@ use std::mem;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{Duration, Instant};
+use std::time::{Duration};
 use std::vec::Vec;
 use std::hash::Hash;
 
@@ -77,6 +76,7 @@ impl Connection {
                     );
                     match peer_manager.read_event(&mut sd, pending_read) {
                         Ok(pause_read) => {
+                            warn!(">>>>>>>>>>>> read_event, {}", &pause_read);
                             if pause_read {
                                 let mut lock = this_ref.lock().unwrap();
                                 lock.read_paused = true;
@@ -293,6 +293,8 @@ macro_rules! schedule_read {
                     sender.send(Ok(())).unwrap();
                 }
                 us.read_paused = false;
+
+                warn!(">>> SEND FROM SCHEDULE READ macro");
                 if let Err(e) = us.event_notify.try_send(()) {
                     // Ignore full errors as we just need them to poll after this point, so if the user
                     // hasn't received the last send yet, it doesn't matter.

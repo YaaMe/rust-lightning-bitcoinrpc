@@ -28,12 +28,14 @@ pub fn fund_channel (
             match channel_manager.create_channel(pubkey, value, push, 0) {
                 Ok(_) => { 
                     info!("Channel created, {} sending open_channel ...", pubkey_str); 
+                    warn!("SEND FROM fund channel"); 
                     let _ = event_notify.try_send(());
                     Ok(String::from(pubkey_str))
                 }
                 Err(e) => { 
                     let err_str = format!("Failed to open channel: {:?}!", e);
                     warn!("{}", &err_str);
+                    warn!("SEND FROM fund channel failed"); 
                     let _ = event_notify.try_send(());
                     Err(err_str)
                 }
@@ -60,6 +62,7 @@ pub fn close(
             debug!("called close");
             match channel_manager.close_channel(&channel_id) {
                 Ok(()) => {
+                    warn!("SEND FROM close channel"); 
                     let _ = event_notify.try_send(());
                     info!("Channel closing: {}", &ch_id);
                     Ok(ch_id.to_string())
@@ -88,25 +91,16 @@ pub fn force_close_all(channel_manager: &Arc<ChannelManager>) {
 pub fn channel_list(channel_manager: &Arc<ChannelManager>) -> Vec<String> {
     let channels = channel_manager.list_channels();
     channels.into_iter().map(|channel| {
-        match channel.short_channel_id {
-            Some(short_id) => {
-                json!({ 
-                    "id": hex_str(&channel.channel_id[..]), 
-                    "confirmed": true,
-                    "short_id": short_id,
-                    "peer": hex_str(&channel.remote_network_id.serialize()),
-                    "value_sats": channel.channel_value_satoshis
-                }).to_string()
-            }
-            None => {
-                json!({ 
-                    "id": hex_str(&channel.channel_id[..]), 
-                    "confirmed": false,
-                    "short_id": "",
-                    "peer": hex_str(&channel.remote_network_id.serialize()),
-                    "value_sats": channel.channel_value_satoshis
-                }).to_string()
-            }
-        }
+        let (id, confirmed) = match channel.short_channel_id {
+            Some(short_id) => { (format!("{}",short_id), true) }
+            None => { ("".to_string(), false) }
+        };
+        json!({ 
+            "id": hex_str(&channel.channel_id[..]), 
+            "confirmed": confirmed,
+            "short_id": id,
+            "peer": hex_str(&channel.remote_network_id.serialize()),
+            "value_sats": channel.channel_value_satoshis
+        }).to_string()
     }).collect()
 }
