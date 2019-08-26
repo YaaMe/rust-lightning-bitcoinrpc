@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::sync::{Arc, Mutex};
+use std::time::{Instant};
 
 use crate::future;
 use futures::channel::mpsc;
@@ -45,7 +46,9 @@ async fn handle_fund_tx<T: Larva>(
         false
     ).await.unwrap();
     
+    info!("funded_tx: {}", &funded_tx);
     let changepos = funded_tx["changepos"].as_i64().unwrap();
+    info!("change pos: {}", &changepos);
     assert!(changepos == 0 || changepos == 1);
 
     let signed_tx_args = &[&format!("\"{}\"", funded_tx["hex"].as_str().unwrap())[..]];
@@ -93,7 +96,7 @@ async fn handle_events<T: Larva>(
                 let images = this.payment_preimages.lock().unwrap();
                 if let Some(payment_preimage) = images.get(&payment_hash) {
                     if this.channel_manager.claim_funds(payment_preimage.clone()) {
-                        info!("Moneymoney! {} id {}", amt, hex_str(&payment_hash.0));
+                        info!("Payment received: {} msat id {}", amt, hex_str(&payment_hash.0));
                     } else {
                         info!("Failed to claim money we were told we had?");
                     }
@@ -107,7 +110,8 @@ async fn handle_events<T: Larva>(
             Event::PendingHTLCsForwardable { time_forwardable } => {
                 let this = this.clone();
                 let mut sender = self_sender.clone();
-                let _ = larva.spawn_task(Box::new(tokio::timer::Delay::new(time_forwardable).then(move |_| {
+                let deadline = Instant::now().checked_add(time_forwardable).unwrap();
+                let _ = larva.spawn_task(Box::new(tokio::timer::Delay::new(deadline).then(move |_| {
                     this.channel_manager.process_pending_htlc_forwards();
                     let _ = sender.try_send(());
                     future::ok(())
@@ -120,7 +124,7 @@ async fn handle_events<T: Larva>(
                 info!("Broadcast funding tx {}!", tx.txid());
             },
             Event::PaymentSent { payment_preimage } => {
-                info!("Less money :(, proof: {}", hex_str(&payment_preimage.0));
+                info!("Payment Sent, proof: {}", hex_str(&payment_preimage.0));
             },
             Event::PaymentFailed { payment_hash, rejected_by_dest } => {
                 info!("{} failed id {}!", if rejected_by_dest { "Send" } else { "Route" }, hex_str(&payment_hash.0));

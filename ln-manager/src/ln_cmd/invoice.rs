@@ -51,18 +51,18 @@ pub fn pay(
                     }
                 }) {
                     if args.len() == 2 {
-                        debug!("Invoice had amount, you shouldn't specify one");
+                        warn!("Invoice had amount, you shouldn't specify one");
                     }
                     amt
                 } else {
                     if args.len() == 1 {
-                        debug!("Invoice didn't have an amount, you should specify one");
+                        warn!("Invoice didn't have an amount, you should specify one");
                         fail_return!();
                     }
                     match args[1].parse() {
                         Ok(amt) => amt,
                         Err(_) => {
-                            debug!("Provided amount was garbage");
+                            warn!("Provided amount was garbage");
                             fail_return!();
                         }
                     }
@@ -70,7 +70,7 @@ pub fn pay(
 
                 if let Some(pubkey) = invoice.payee_pub_key() {
                     if *pubkey != invoice.recover_payee_pub_key() {
-                        debug!(
+                        warn!(
                             "Invoice had non-equal duplicative target node_id (ie was malformed)"
                         );
                         fail_return!();
@@ -101,6 +101,11 @@ pub fn pay(
                     debug!("Invoice had garbage final cltv");
                     fail_return!();
                 }
+                
+                info!("invoice route length: {}", invoice.routes().len());
+                let usable_channels_len = &channel_manager.list_usable_channels().len();
+                info!("usable channel length: {}", usable_channels_len);
+                
                 match router.get_route(
                     &invoice.recover_payee_pub_key(),
                     Some(&channel_manager.list_usable_channels()),
@@ -115,18 +120,19 @@ pub fn pay(
                             .copy_from_slice(&invoice.payment_hash().into_inner()[..]);
                         match channel_manager.send_payment(route, payment_hash) {
                             Ok(()) => {
-                                debug!("Sending {} msat", amt);
+                                info!("Sending {} msat", amt);
                                 let _ = event_notify.try_send(());
                                 Ok(())
                             }
                             Err(e) => {
-                                debug!("Failed to send HTLC: {:?}", e);
-                                Err("Failed to send HLTC".to_string())
+                                let error = format!("Failed to send HTLC: {:?}", e);
+                                debug!("{}", error);
+                                Err(error)
                             }
                         }
                     }
                     Err(e) => {
-                        debug!("Failed to find route: {}", e.err);
+                        info!("Failed to find route: {}", e.err);
                         Err("Failed to find route".to_string())
                     }
                 }
