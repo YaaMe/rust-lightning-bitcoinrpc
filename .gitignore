@@ -1,2 +1,7 @@
 *~
-/target
+*.swp
+*.swo
+ln/
+target/
+server/server*
+venv
