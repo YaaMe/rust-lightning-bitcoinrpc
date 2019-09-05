@@ -25,9 +25,9 @@ WORKDIR /lightning
 
 COPY . /lightning
 
-RUN set -x \
-  && cd test/integration \
-  && pip3 install -r requirements.txt
+#RUN set -x \
+#  && cd test/integration \
+#  && pip3 install --user -r requirements.txt
 
 ARG BUILD_TYPE=debug
 ENV FINAL_TYPE=$BUILD_TYPE
@@ -46,15 +46,23 @@ RUN set -x \
   && if [ $BUILD_TYPE == "release" ]; then cargo build --release; else cargo build; fi \
   && [ -d "target/$BUILD_TYPE" ] && cp -r "/lightning/cli/target/$BUILD_TYPE/" /output/cli/$BUILD_TYPE
 
-
-FROM alpine:3.10
+FROM python:3
 
 ARG BUILD_TYPE=debug
 ENV FINAL_TYPE=$BUILD_TYPE
 
 WORKDIR /app
+
+# Copy rust built binary to local workdir
 COPY --from=rustenv /output .
+# Copy python script in `test`
+COPY --from=rustenv /lightning/test ./test
+# Copy python packages from requirements.txt after fetch & build
+# COPY --from=rustenv /root/.local /root/.local
+# and set env for python3 and cli
+ENV PATH=/app/cli/$VER:$PATH
+RUN cd test/integration \
+  && pip install --no-cache-dir -r requirements.txt
 
-RUN export PATH="$PATH:/app/cli/$VER"
-
-CMD ["./server/$FINAL_TYPE/rustbolt"]
+# Run script
+CMD ["python3", "test/integration/main.py"]
