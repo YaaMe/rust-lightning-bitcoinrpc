@@ -24,7 +24,8 @@ def print_error(message):
     print("{} \x1b[1;31m[ERROR]\x1b[0m {} ... ".format(get_now(), message))
 
 def get_env(test_version):
-    working_dir = os.getcwd() + "/"
+    # working_dir = os.getcwd() + "/"
+    working_dir = "/app/"
     server_dir = working_dir + "server/"
     client_dir = working_dir + "cli/"
     conf_dir = working_dir + "test/conf/"
@@ -34,11 +35,14 @@ def get_env(test_version):
         "server": {
             "bin": "rustbolt",
             "root": server_dir,
-            "test": "{}target/{}/".format(server_dir,test_version) },
+            # "test": "{}target/{}/".format(server_dir,test_version) },
+            "test":"{}{}/".format(server_dir,test_version)
+        },
         "cli": {
             "bin": "rbcli",
             "root": client_dir,
-            "test": "{}target/{}/".format(client_dir,test_version)
+            # "test": "{}target/{}/".format(client_dir,test_version),
+            "test": "{}{}/".format(client_dir,test_version)
         },
         "conf": {
             "root" : conf_dir,
@@ -60,17 +64,7 @@ def sleep(action, secs):
         if i:
             print("{}...".format(secs-i), end=end, flush=True )
             time.sleep(1)
-
-def build(project, version, env):
-    print_info("building {} version: {}".format(project, version))
-    os.chdir(env[project]["root"])
-    # TODO only for circle-ci cargo path now
-    result = subprocess.run(["/root/.cargo/bin/cargo", "build"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-    if result.returncode != 0:
-        print_error(result.stderr)
-        raise Exception("Build Error")
-    print_pass("build success, {} is ready".format(project))
-    return env[project]["test"]
+    return
 
 def run_server(server_id, build_dir, version, env):
     server_bin =  build_dir + env["server"]["bin"]
@@ -152,17 +146,14 @@ class TestCases(unittest.TestCase):
         self.client1 = BitcoinClient("admin1:123@regtest-1:19011")
         self.env = get_env("debug")
         print_info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> magic")
-        self.server_build_dir = build("server", "debug", self.env)
-        self.cli_build_dir = build("cli", "debug", self.env)
+        self.server_build_dir = self.env["server"]["test"]
+        self.cli_build_dir = self.env["cli"]["test"]
 
         data_dir = self.server_build_dir + "ln"
         print_info("wiping data: {}".format(data_dir))
         subprocess.run(["rm", "-rf", data_dir])
 
         sleep("wait for node initialize...", 10)
-        info1 = self.client1.req("getblockchaininfo", [])
-        print_info("checking client1 at setup...")
-        print_info(info1)
         self.ln_node_1 = run_server(1, self.server_build_dir, "debug", self.env)
         self.ln_node_2 = run_server(2, self.server_build_dir, "debug", self.env)
 
@@ -188,8 +179,8 @@ class TestCases(unittest.TestCase):
         sleep("wait kill", 3)
 
         print_info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> restart")
-        self.server_build_dir = build("server", "debug", self.env)
-        self.cli_build_dir = build("cli", "debug", self.env)
+        self.server_build_dir = self.env["server"]["test"]
+        self.cli_build_dir = self.env["cli"]["test"]
 
         data_dir = self.server_build_dir + "ln"
         print_info("wiping data: {}".format(data_dir))
