@@ -24,7 +24,6 @@ def print_error(message):
     print("{} \x1b[1;31m[ERROR]\x1b[0m {} ... ".format(get_now(), message))
 
 def get_env(test_version):
-    # working_dir = os.getcwd() + "/"
     working_dir = "/app/"
     server_dir = working_dir + "server/"
     client_dir = working_dir + "cli/"
@@ -139,13 +138,12 @@ class BitcoinClient:
 HOST = "lightning"
 # not a real unittest, only for count cases
 class TestCases(unittest.TestCase):
-
     @classmethod
     def setUpClass(self):
         self.client = BitcoinClient("admin1:123@regtest-0:19001")
         self.client1 = BitcoinClient("admin1:123@regtest-1:19011")
         self.env = get_env("debug")
-        print_info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> magic")
+        print_info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> magic")
         self.server_build_dir = self.env["server"]["test"]
         self.cli_build_dir = self.env["cli"]["test"]
 
@@ -158,15 +156,13 @@ class TestCases(unittest.TestCase):
         self.ln_node_2 = run_server(2, self.server_build_dir, "debug", self.env)
 
         print_info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> fund shutdown")
-        sleep("wait for a long time", 20)
+        sleep("wait for a long time", 5)
         self.client.req("generate", [200])
-        sleep("wait", 10)
         node_1 = run_cli(self.cli_build_dir, self.env, ["-n", "{}:8123".format(HOST), "info", "-a"])
         node_2 = run_cli(self.cli_build_dir, self.env, ["-n", "{}:8124".format(HOST), "info", "-a"])
         addrs = node_1['imported_addresses'] + node_2['imported_addresses']
         for addr in addrs:
             fund(addr, 0.5, self.client)
-        sleep("wait fund", 10)
         self.client.req("generate", [10])
         sleep("wait generate", 10)
         self.ln_node_1.kill()
@@ -176,7 +172,7 @@ class TestCases(unittest.TestCase):
             data_dir = self.server_build_dir + "ln"
             print_info("wiping data: {}".format(data_dir))
             subprocess.run(["rm", "-rf", data_dir])
-        sleep("wait kill", 3)
+        sleep("wait kill", 5)
 
         print_info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> restart")
         self.server_build_dir = self.env["server"]["test"]
@@ -187,9 +183,6 @@ class TestCases(unittest.TestCase):
         subprocess.run(["rm", "-rf", data_dir])
 
         sleep("wait for node initialize...", 10)
-        info1 = self.client1.req("getblockchaininfo", [])
-        print_info("checking client1 at setup...")
-        print_info(info1)
         self.ln_node_1 = run_server(1, self.server_build_dir, "debug", self.env)
         self.ln_node_2 = run_server(2, self.server_build_dir, "debug", self.env)
 
@@ -222,9 +215,6 @@ class TestCases(unittest.TestCase):
         info1 = self.client1.req("getblockchaininfo", [])
         print_info(info1)
         self.assertIsNone(info1["error"], "failed to get blockchain info 1: {}".format(info1))
-        if int(info["result"]["blocks"]) < 200:
-            self.generate_block(200)
-            sleep("waiting for 200 blocks", 10)
         return
 
     def generate_block(self, nums=1):
@@ -242,7 +232,6 @@ class TestCases(unittest.TestCase):
         for addr in addrs:
             fund(addr, 0.5, self.client)
         self.generate_block(10)
-        sleep("waiting for funded block", 10)
         return
     def test_1_info_pubkey(self):
         node_1 = run_cli(self.cli_build_dir, self.env, ["-n", "{}:8123".format(HOST), "info", "-n"])
@@ -261,7 +250,6 @@ class TestCases(unittest.TestCase):
         )
         print_pass("got connection: {}".format(connect))
         self.assertIsNotNone(connect["response"])
-        sleep("wait peer -c", 5)
         r4 = run_cli(self.cli_build_dir, self.env, ["-n", "{}:8123".format(HOST), "peer", "-l"])
         print_pass("got node #1 peers: {}".format(r4))
         r41 = run_cli(self.cli_build_dir, self.env, ["-n", "{}:8124".format(HOST), "peer", "-l"])
@@ -273,15 +261,13 @@ class TestCases(unittest.TestCase):
         self.assertTrue(len(r4["peers"]) > 0)
         return
     def test_3_0_channel_connect(self):
-        sleep("generate blocks", 10)
-        self.generate_block(11)
         sleep("wait", 10)
+        self.generate_block(10)
         r5 = run_cli(self.cli_build_dir, self.env, ["-n", "{}:8123".format(HOST), "channel", "-c", self.node_id_2, "2000000", "100500000"])
         print_pass("got channel: {}".format(r5))
         self.assertIsNotNone(r5["channel"])
-        sleep("generate blocks", 10)
-        self.generate_block(10)
         sleep("wait", 10)
+        self.generate_block(10)
         return
     def test_3_1_channel_list(self):
         r6 = run_cli(self.cli_build_dir, self.env, ["-n", "{}:8123".format(HOST), "channel", "-l", "all"])
@@ -313,8 +299,8 @@ class TestCases(unittest.TestCase):
         print_info("pay invoice: {}".format(r16))
         self.assertTrue("error" not in r16)
         return
-    def test_4_1_check_channel(self):
-        return
+    # def test_4_1_check_channel(self):
+    #     return
     def test_5_0_kill_channel(self):
         r6 = run_cli(self.cli_build_dir, self.env, ["-n", "{}:8123".format(HOST), "channel", "-l", "all"])
         print_pass("got channel list: {}".format(r6))
