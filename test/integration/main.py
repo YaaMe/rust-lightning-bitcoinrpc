@@ -15,7 +15,7 @@ def print_exec(message):
     print("{} \x1b[1;33m[ >>>>]\x1b[0m {}".format(get_now(), message))
 
 def print_pass(message):
-v    print("{} \x1b[1;32m[ PASS]\x1b[0m {} ... ".format(get_now(), message))
+    print("{} \x1b[1;32m[ PASS]\x1b[0m {} ... ".format(get_now(), message))
 
 def print_bold(message, tag):
     print("{} \x1b[1;37m[{}]\x1b[0m {} ... ".format(get_now(), tag.upper(), message))
