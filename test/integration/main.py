@@ -284,7 +284,7 @@ class TestCases(unittest.TestCase):
         r5 = run_cli(self.cli_build_dir, self.env, ["-n", "{}:8123".format(self.env["host"]), "channel", "-c", self.node_id_2, "2000000", "100500000"])
         print_pass("got channel: {}".format(r5))
         self.assertIsNotNone(r5["channel"])
-        sleep("generate blocks", 5)
+        sleep("generate blocks", 15)
         self.generate_block(10)
         return
     def test_3_1_channel_list(self):
