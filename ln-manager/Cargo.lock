@@ -415,7 +415,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "hyper"
 version = "0.13.0-alpha.1"
-source = "git+https://github.com/hyperium/hyper.git#144893b409dd2da45b8a0aa2245fb96d252b9f25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-channel-preview 0.3.0-alpha.18 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -429,7 +429,7 @@ dependencies = [
  "itoa 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "net2 0.2.33 (registry+https://github.com/rust-lang/crates.io-index)",
- "pin-project 0.4.0-alpha.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pin-project 0.4.0-alpha.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio 0.2.0-alpha.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-executor 0.2.0-alpha.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -556,7 +556,7 @@ dependencies = [
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-preview 0.3.0-alpha.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-timer 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "hyper 0.13.0-alpha.1 (git+https://github.com/hyperium/hyper.git)",
+ "hyper 0.13.0-alpha.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "lightning 0.0.9 (git+https://github.com/rust-bitcoin/rust-lightning.git)",
  "lightning-invoice 0.2.0 (git+https://github.com/knarfytrebil/rust-lightning-invoice.git)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -765,19 +765,20 @@ dependencies = [
 
 [[package]]
 name = "pin-project"
-version = "0.4.0-alpha.9"
+version = "0.4.0-alpha.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "pin-project-internal 0.4.0-alpha.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pin-project-internal 0.4.0-alpha.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "pin-project-internal"
-version = "0.4.0-alpha.9"
+version = "0.4.0-alpha.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "proc-macro2 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc_version 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "syn 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1809,7 +1810,7 @@ dependencies = [
 "checksum http 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)" = "372bcb56f939e449117fb0869c2e8fd8753a8223d92a172c6e808cf123a5b6e4"
 "checksum http-body 0.2.0-alpha.1 (registry+https://github.com/rust-lang/crates.io-index)" = "1bc8dfa1f6155eadd665d39458a6c1a2c37bbd372a053383a4245775a0d9d98a"
 "checksum httparse 1.3.4 (registry+https://github.com/rust-lang/crates.io-index)" = "cd179ae861f0c2e53da70d892f5f3029f9594be0c41dc5269cd371691b1dc2f9"
-"checksum hyper 0.13.0-alpha.1 (git+https://github.com/hyperium/hyper.git)" = "<none>"
+"checksum hyper 0.13.0-alpha.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b29d2384e8be7c31ae4a829d1aea12d3edd55d35b50bc462d57cf9e5cf0c40ad"
 "checksum indexmap 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a61202fbe46c4a951e9404a720a0180bcf3212c750d735cb5c4ba4dc551299f3"
 "checksum iovec 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "dbe6e417e7d0975db6512b90796e8ce223145ac4e33c377e4a42882a0e88bb08"
 "checksum itoa 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)" = "501266b7edd0174f8530248f87f99c88fbe60ca4ef3dd486835b8d8d53136f7f"
@@ -1843,8 +1844,8 @@ dependencies = [
 "checksum parking_lot 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f842b1982eb6c2fe34036a4fbfb06dd185a3f5c8edfaacdf7d1ea10b07de6252"
 "checksum parking_lot_core 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "94c8c7923936b28d546dfd14d4472eaf34c99b14e1c973a32b3e6d4eb04298c9"
 "checksum parking_lot_core 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b876b1b9e7ac6e1a74a6da34d25c42e17e8862aa409cbbbdcfc8d86c6f3bc62b"
-"checksum pin-project 0.4.0-alpha.9 (registry+https://github.com/rust-lang/crates.io-index)" = "5735db2fbc10ccb05c20f6abb5c016a946ab5cc82f315419ecf6f3710f51e005"
-"checksum pin-project-internal 0.4.0-alpha.9 (registry+https://github.com/rust-lang/crates.io-index)" = "100f383f50075704e4dc89247125f341140eb530ca9614b65c80e933934134bb"
+"checksum pin-project 0.4.0-alpha.7 (registry+https://github.com/rust-lang/crates.io-index)" = "23958463f707b6c0ee047deb774954c1593d685c86670438f68bd0813b78b136"
+"checksum pin-project-internal 0.4.0-alpha.7 (registry+https://github.com/rust-lang/crates.io-index)" = "c6a2609686498260f9260bbc627fc6131b23e150273ac4367a3c888a0daffb46"
 "checksum pin-utils 0.1.0-alpha.4 (registry+https://github.com/rust-lang/crates.io-index)" = "5894c618ce612a3fa23881b152b608bafb8c56cfc22f434a3ba3120b40f7b587"
 "checksum proc-macro2 0.4.30 (registry+https://github.com/rust-lang/crates.io-index)" = "cf3d2011ab5c909338f7887f4fc896d35932e29146c12c8d01da6b22a80ba759"
 "checksum proc-macro2 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "e98a83a9f9b331f54b924e68a66acb1bb35cb01fb0a23645139967abefb697e8"

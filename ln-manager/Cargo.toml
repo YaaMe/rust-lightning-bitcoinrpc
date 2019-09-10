@@ -13,11 +13,12 @@ lightning = { git = "https://github.com/rust-bitcoin/rust-lightning.git", branch
 lightning-invoice = { git = "https://github.com/knarfytrebil/rust-lightning-invoice.git" }
 # lightning-invoice = { path = "../../rust-lightning-invoice" }
 secp256k1 = "0.15"
-hyper = { git = "https://github.com/hyperium/hyper.git", branch = "master" }
+# hyper = { git = "https://github.com/hyperium/hyper.git", branch = "master" }
+hyper = "=0.13.0-alpha.1"
 tokio-io = "=0.2.0-alpha.4"
 tokio-fs = "=0.2.0-alpha.4"
 tokio-codec = "=0.2.0-alpha.4"
-tokio-net = "=0.2.0-alpha.4"
+tokio-net = { version = "=0.2.0-alpha.4", features = ["async-traits"] }
 tokio = "=0.2.0-alpha.4"
 futures-timer = "0.4.0"
 futures = { package = "futures-preview", version = "0.3.0-alpha.18" }
