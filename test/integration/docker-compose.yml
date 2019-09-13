@@ -25,12 +25,18 @@ services:
     environment:
       RUST_BACKTRACE: full
       TERM: xterm
+      CI: "${CI}"
+      TRAVIS          : "${TRAVIS}"
+      SHIPPABLE       : "${SHIPPABLE}"
+      TRAVIS_BRANCH   : "${TRAVIS_BRANCH}"
+      TRAVIS_COMMIT   : "${TRAVIS_COMMIT}"
+      TRAVIS_JOB_NUMB : "${TRAVIS_JOB_NUMB}"
+      TRAVIS_PULL_REQ : "${TRAVIS_PULL_REQ}"
+      TRAVIS_JOB_ID   : "${TRAVIS_JOB_ID}"
+      TRAVIS_REPO_SLU : "${TRAVIS_REPO_SLU}"
+      TRAVIS_TAG      : "${TRAVIS_TAG}"
+      TRAVIS_OS_NAME  : "${TRAVIS_OS_NAME}"
     depends_on:
       - regtest-0
       - regtest-1
       - regtest-2
-    # command: curl --retry 5 --retry-delay 5 --retry-connrefused --data-binary '{"jsonrpc":"2.0","id":"curltext","method":"getblockchaininfo","params":[]}' -H 'content-type:text/plain;' -vvv http://admin1:123@regtest-0:19001/
-    command: python3 /lightning/test/integration/main.py
-# integration_regtest-0_1 port 19001: Connection refused
-# Could not resolve host: regtest-0_1
-# Failed to connect to regtest-0 port 19001: Connection refused
