@@ -1,17 +1,9 @@
 language: rust
 
-rust:
-  - stable
-  - beta
-  - nightly
+sudo: required
 
-matrix:
-  allow_failures:
-    - rust: nightly
-  fast_finish: true
-
-cache: cargo
-
+services:
+    - docker
 script:
-  - cargo build --verbose --all
-  - cargo test --verbose --all
+    - docker-compose -f test/integration/docker-compose.yml up --exit-code-from lightning
+
