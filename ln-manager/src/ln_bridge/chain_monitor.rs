@@ -209,7 +209,7 @@ fn find_fork_step(
                 // Spawn a future onto the runtime
                 thread::spawn(move || {
                     let mut rt = Runtime::new().unwrap();
-                    rt.block_on(async move { 
+                    rt.block_on(async move {
                         debug!("recursive");
                         let new_cur_header = rpc_client.get_block_header(&current_header.previousblockhash).await;
                         find_fork_step(
@@ -250,7 +250,7 @@ fn find_fork_step(
                 // Target is higher, walk it back and recurse
                 thread::spawn(move || {
                     let mut rt = Runtime::new().unwrap();
-                    rt.block_on(async move { 
+                    rt.block_on(async move {
                         let new_target_header = rpc_client.get_block_header(&target_header.previousblockhash).await;
                         find_fork_step(
                             steps_tx,
@@ -274,7 +274,7 @@ fn find_fork_step(
                 if let Ok(_) = send_res {
                     thread::spawn(move || {
                         let mut rt = Runtime::new().unwrap();
-                        rt.block_on(async move { 
+                        rt.block_on(async move {
                             let new_cur_header = rpc_client.get_block_header(&current_header.previousblockhash).await;
                             let new_target_header = rpc_client.get_block_header(&target_header.previousblockhash).await;
                             find_fork_step(
@@ -321,9 +321,9 @@ async fn find_fork(
     ))) {
         if current_header.previousblockhash == target_hash || current_header.height == 1 {
             // Fastpath one-new-block-connected or reached block 1
-            info!("New block discovered.."); 
-            info!("New Height: {}", &current_header.height); 
-            info!("New Hash: {}", &current_hash); 
+            info!("New block discovered..");
+            info!("New Height: {}", &current_header.height);
+            info!("New Hash: {}", &current_hash);
             return;
         } else {
             if let Ok(target_header) = rpc_client.get_block_header(&target_hash).await {
@@ -358,7 +358,7 @@ pub async fn spawn_chain_monitor(
     event_notify: mpsc::Sender<()>,
     larva: impl Larva,
 ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let _ = larva.clone().spawn_task(async { 
+    let _ = larva.clone().spawn_task(async {
         FeeEstimator::update_values(
             fee_estimator.clone(),
             rpc_client.clone()
@@ -385,7 +385,7 @@ pub async fn spawn_chain_monitor(
 
                 *cur_block.lock().unwrap() = new_block.clone();
                 if old_block == "" {
-                    return Ok(()); 
+                    return Ok(());
                 }
 
                 let (events_tx, events_rx): (mpsc::Sender<ForkStep>, mpsc::Receiver<ForkStep>) = mpsc::channel(1);
@@ -421,7 +421,7 @@ pub async fn spawn_chain_monitor(
                         }
                     }
                 });
-                
+
                 let _ = future::join_all(actions).await;
                 let _ = FeeEstimator::update_values(fee_estimator, rpc_client).await;
                 let _ = event_notify.try_send(());

@@ -2,7 +2,7 @@ use crate::ln_cmd::tasks::Arg;
 use crate::ln_cmd::tasks::Probe;
 use futures::future::Future;
 use ln_manager::ln_bridge::settings::Settings as MgrSettings;
-use ln_manager::LnManager;
+use ln_manager::{LnManager, Builder};
 
 pub fn gen(
     arg: Vec<Arg>,
@@ -15,7 +15,7 @@ pub fn gen(
     };
 
     LnManager::new(
-        ln_conf.unwrap().clone(), 
+        ln_conf.unwrap().clone(),
         exec.clone()
     )
 }

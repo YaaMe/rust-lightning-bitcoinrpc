@@ -35,14 +35,16 @@ use std::collections::HashMap;
 use std::fs;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
-
+use std::pin::Pin;
 use rand::Rng;
 use futures::future;
+use futures::future::Future;
 use futures::channel::mpsc;
 use futures::{FutureExt, StreamExt};
 
 use bitcoin::network::constants;
 use lightning::chain::keysinterface::{KeysInterface, KeysManager};
+use lightning::chain;
 use lightning::ln::channelmanager::{ChannelManager, PaymentHash, PaymentPreimage};
 use lightning::ln::peer_handler::PeerManager;
 use lightning::ln::{channelmanager, channelmonitor, peer_handler, router};
@@ -54,7 +56,7 @@ use ln_bridge::connection::{Connection, SocketDescriptor};
 use ln_bridge::chain_monitor::{spawn_chain_monitor, ChainWatchInterfaceUtil, ChainBroadcaster, FeeEstimator};
 use ln_bridge::channel_monitor::ChannelMonitor;
 use ln_bridge::channel_manager::RestoreArgs as RestoreManagerArgs;
-use ln_bridge::event_handler::EventHandler;
+use ln_bridge::event_handler;
 use ln_bridge::rpc_client::RPCClient;
 use ln_bridge::log_printer::LogPrinter;
 use ln_bridge::settings::Settings;
@@ -77,188 +79,214 @@ pub struct LnManager<T: Larva> {
 }
 
 impl_command!(LnManager);
+pub type R<T> = Pin<Box<dyn Future<Output=Result<LnManager<T>, ()>> + Send>>;
 
-impl<T: Larva> LnManager<T> {
-    pub async fn new(settings: Settings, larva: T) -> Result<Self, ()> {
-
-        // Logger
-        let logger = Arc::new(LogPrinter { level: Level::Debug });
-        let rpc_client = Arc::new(RPCClient::new(settings.bitcoind.rpc_url.clone()));
-        let secp_ctx = Secp256k1::new();
-        let fee_estimator = Arc::new(FeeEstimator::new());
-
-        info!("Checking validity of RPC URL to bitcoind...");
-        let network = get_network(&rpc_client).await?;
-        info!("Success! Starting up...");
-
-        // Data Storage
-        let data_path = settings.lightning.lndata.clone();
-        if !fs::metadata(&data_path).unwrap().is_dir() {
-            panic!("Need storage_directory_path to exist and be a directory (or symlink to one)");
-        }
-
-        let _ = fs::create_dir(data_path.clone() + "/monitors"); // If it already exists, ignore, hopefully perms are ok
-
-        // Key Seed
-        let our_node_seed = ln_bridge::key::get_key_seed(data_path.clone());
-
-        let (secs, nano) = get_seeds_from_time();
-        let keys = Arc::new(KeysManager::new(&our_node_seed, network, logger.clone(), secs, nano));
-
-        let (import_key_1, import_key_2) = ln_bridge::key::get_import_secret_keys(network, &our_node_seed);
-
-        let chain_watcher = Arc::new(ChainWatchInterfaceUtil::new(network, logger.clone()));
-        let chain_broadcaster = Arc::new(ChainBroadcaster::new(rpc_client.clone(),larva.clone()));
-
-        let async_client = rpc_client.clone();
-        let _ = larva.clone().spawn_task(async move {
-            let k = &[
-                &("\"".to_string()
-                  + &bitcoin::util::key::PrivateKey {
-                      key: import_key_1,
-                      compressed: true,
-                      network,
-                  }
-                  .to_wif()
-                  + "\""),
-                "\"rust-lightning ChannelMonitor claim\"",
-                "false",
-            ];
-            async_client.make_rpc_call("importprivkey", k, false).map(|_| Ok(())).await
-        });
-        let async_client = rpc_client.clone();
-        let _ = larva.clone().spawn_task(async move {
-            let k = &[
-                &("\"".to_string()
-                  + &bitcoin::util::key::PrivateKey {
-                      key: import_key_2,
-                      compressed: true,
-                      network,
-                  }
-                  .to_wif()
-                  + "\""),
-                "\"rust-lightning cooperative close\"",
-                "false",
-            ];
-            async_client.make_rpc_call("importprivkey", k, false).map(|_| Ok(())).await
-        });
-
-        let monitors_loaded = ChannelMonitor::load_from_disk(&(data_path.clone() + "/monitors"));
-
-        let monitor = Arc::new(ChannelMonitor {
-            monitor: channelmonitor::SimpleManyChannelMonitor::new(
-                chain_watcher.clone(),
-                chain_broadcaster.clone(),
-                logger.clone(),
-                fee_estimator.clone(),
-            ),
-            file_prefix: data_path.clone() + "/monitors",
-        });
-
-        let channel_manager = channelmanager::ChannelManager::try_restore(RestoreManagerArgs::new(
-            data_path.clone(),
-            monitors_loaded,
-            network.clone(),
-            fee_estimator.clone(),
-            monitor.clone(),
-            chain_watcher.clone(),
-            chain_broadcaster.clone(),
-            logger.clone(),
-            keys.clone(),
-        ));
-
-        let router = Arc::new(router::Router::new(
-            PublicKey::from_secret_key(&secp_ctx, &keys.get_node_secret()),
-            chain_watcher.clone(), // chain watch
-            logger.clone(),
-        ));
-
-        let peer_manager = Arc::new(peer_handler::PeerManager::new(
-            peer_handler::MessageHandler {
-                chan_handler: channel_manager.clone(),
-                route_handler: router.clone(),
-            },
-            keys.get_node_secret(),
-            &rand::thread_rng().gen::<[u8; 32]>(),
-            logger.clone(),
-        ));
-
-        let payment_preimages = Arc::new(Mutex::new(HashMap::new()));
-
-        // clone for move (handle receiver)
-        let event_notify = EventHandler::<T>::setup(
+pub trait Builder<T: Larva> {
+    fn get_event_handler(
+        network: constants::Network,
+        data_path: String,
+        rpc_client: Arc<RPCClient>,
+        peer_manager: Arc<PeerManager<SocketDescriptor<T>>>,
+        monitor: Arc<channelmonitor::SimpleManyChannelMonitor<chain::transaction::OutPoint>>,
+        channel_manager: Arc<ChannelManager>,
+        chain_broadcaster: Arc<dyn chain::chaininterface::BroadcasterInterface>,
+        payment_preimages: Arc<Mutex<HashMap<PaymentHash, PaymentPreimage>>>,
+        larva: T,
+    ) -> mpsc::Sender<()> {
+        event_handler::setup(
             network,
             data_path,
             rpc_client.clone(),
             peer_manager.clone(),
-            monitor.monitor.clone(),
+            monitor.clone(),
             channel_manager.clone(),
-            chain_broadcaster.clone(), // chain broadcaster
+            chain_broadcaster.clone(),
             payment_preimages.clone(),
             larva.clone(),
-        );
-
-        let peer_manager_listener = peer_manager.clone();
-        let event_listener = event_notify.clone();
-        info!("Lightning Port binded on 0.0.0.0:{}", &settings.lightning.port);
-        let addr = &format!("0.0.0.0:{}", settings.lightning.port);
-        let listener = tokio::net::tcp::TcpListener::bind(addr);
-        let setup_larva = larva.clone();
-        let _ = larva.clone().spawn_task(
-            listener.await.unwrap()
-                .incoming()
-                .for_each(move |sock| {
-                    info!("Got new inbound connection, waiting on them to start handshake...");
-                    Connection::setup_inbound(
-                        peer_manager_listener.clone(),
-                        event_listener.clone(),
-                        sock.unwrap(),
-                        setup_larva.clone(),
-                    );
-                    future::ready(())
-                })
-                .map(|_| Ok(()))
-        );
-        let _ = larva.clone().spawn_task(
-            spawn_chain_monitor(
-                fee_estimator,
-                rpc_client.clone(),
-                chain_watcher,
-                chain_broadcaster,
-                event_notify.clone(),
-                larva.clone(),
-            ).map(|_| Ok(()))
-        );
-
-        // TODO see below
-        // let _ = larva.clone().spawn_task(Box::new(
-        //     tokio::timer::Interval::new(Instant::now(), Duration::new(1, 0))
-        //         .for_each(move |_| {
-        //             //TODO: Regularly poll chain_monitor.txn_to_broadcast and send them out
-        //
-        //             future::ready(())
-        //         })
-        //         .map_err(|_| ())
-        // ));
-
-        let ln_manager = Self {
-            rpc_client,
-            network,
-            router,
-            event_notify,
-            channel_manager,
-            peer_manager,
-            payment_preimages,
-            secp_ctx,
-            keys,
-            settings,
-            larva,
-        };
-
-        Ok(ln_manager)
+        )
     }
 
+    fn new(settings: Settings, larva: T) -> R<T> {
+        Box::pin(async {
+            // Logger
+            let logger = Arc::new(LogPrinter { level: Level::Debug });
+            let rpc_client = Arc::new(RPCClient::new(settings.bitcoind.rpc_url.clone()));
+            let secp_ctx = Secp256k1::new();
+            let fee_estimator = Arc::new(FeeEstimator::new());
+
+            info!("Checking validity of RPC URL to bitcoind...");
+            let network = get_network(&rpc_client).await?;
+            info!("Success! Starting up...");
+
+            // Data Storage
+            let data_path = settings.lightning.lndata.clone();
+            if !fs::metadata(&data_path).unwrap().is_dir() {
+                panic!("Need storage_directory_path to exist and be a directory (or symlink to one)");
+            }
+
+            let _ = fs::create_dir(data_path.clone() + "/monitors"); // If it already exists, ignore, hopefully perms are ok
+
+            // Key Seed
+            let our_node_seed = ln_bridge::key::get_key_seed(data_path.clone());
+
+            let (secs, nano) = get_seeds_from_time();
+            let keys = Arc::new(KeysManager::new(&our_node_seed, network, logger.clone(), secs, nano));
+
+            let (import_key_1, import_key_2) = ln_bridge::key::get_import_secret_keys(network, &our_node_seed);
+
+            let chain_watcher = Arc::new(ChainWatchInterfaceUtil::new(network, logger.clone()));
+            let chain_broadcaster = Arc::new(ChainBroadcaster::new(rpc_client.clone(),larva.clone()));
+
+            let async_client = rpc_client.clone();
+            let _ = larva.clone().spawn_task(async move {
+                let k = &[
+                    &("\"".to_string()
+                      + &bitcoin::util::key::PrivateKey {
+                          key: import_key_1,
+                          compressed: true,
+                          network,
+                      }
+                      .to_wif()
+                      + "\""),
+                    "\"rust-lightning ChannelMonitor claim\"",
+                    "false",
+                ];
+                async_client.make_rpc_call("importprivkey", k, false).map(|_| Ok(())).await
+            });
+            let async_client = rpc_client.clone();
+            let _ = larva.clone().spawn_task(async move {
+                let k = &[
+                    &("\"".to_string()
+                      + &bitcoin::util::key::PrivateKey {
+                          key: import_key_2,
+                          compressed: true,
+                          network,
+                      }
+                      .to_wif()
+                      + "\""),
+                    "\"rust-lightning cooperative close\"",
+                    "false",
+                ];
+                async_client.make_rpc_call("importprivkey", k, false).map(|_| Ok(())).await
+            });
+
+            let monitors_loaded = ChannelMonitor::load_from_disk(&(data_path.clone() + "/monitors"));
+
+            let monitor = Arc::new(ChannelMonitor {
+                monitor: channelmonitor::SimpleManyChannelMonitor::new(
+                    chain_watcher.clone(),
+                    chain_broadcaster.clone(),
+                    logger.clone(),
+                    fee_estimator.clone(),
+                ),
+                file_prefix: data_path.clone() + "/monitors",
+            });
+
+            let channel_manager = channelmanager::ChannelManager::try_restore(RestoreManagerArgs::new(
+                data_path.clone(),
+                monitors_loaded,
+                network.clone(),
+                fee_estimator.clone(),
+                monitor.clone(),
+                chain_watcher.clone(),
+                chain_broadcaster.clone(),
+                logger.clone(),
+                keys.clone(),
+            ));
+
+            let router = Arc::new(router::Router::new(
+                PublicKey::from_secret_key(&secp_ctx, &keys.get_node_secret()),
+                chain_watcher.clone(), // chain watch
+                logger.clone(),
+            ));
+
+            let peer_manager = Arc::new(peer_handler::PeerManager::new(
+                peer_handler::MessageHandler {
+                    chan_handler: channel_manager.clone(),
+                    route_handler: router.clone(),
+                },
+                keys.get_node_secret(),
+                &rand::thread_rng().gen::<[u8; 32]>(),
+                logger.clone(),
+            ));
+
+            let payment_preimages = Arc::new(Mutex::new(HashMap::new()));
+
+            // clone for move (handle receiver)
+            let event_notify = LnManager::get_event_handler(
+                network,
+                data_path,
+                rpc_client.clone(),
+                peer_manager.clone(),
+                monitor.monitor.clone(),
+                channel_manager.clone(),
+                chain_broadcaster.clone(),
+                payment_preimages.clone(),
+                larva.clone(),
+            );
+
+            let peer_manager_listener = peer_manager.clone();
+            let event_listener = event_notify.clone();
+            info!("Lightning Port binded on 0.0.0.0:{}", &settings.lightning.port);
+            let addr = &format!("0.0.0.0:{}", settings.lightning.port);
+            let listener = tokio::net::tcp::TcpListener::bind(addr);
+            let setup_larva = larva.clone();
+            let _ = larva.clone().spawn_task(
+                listener.await.unwrap()
+                    .incoming()
+                    .for_each(move |sock| {
+                        info!("Got new inbound connection, waiting on them to start handshake...");
+                        Connection::setup_inbound(
+                            peer_manager_listener.clone(),
+                            event_listener.clone(),
+                            sock.unwrap(),
+                            setup_larva.clone(),
+                        );
+                        future::ready(())
+                    })
+                    .map(|_| Ok(()))
+            );
+            let _ = larva.clone().spawn_task(
+                spawn_chain_monitor(
+                    fee_estimator,
+                    rpc_client.clone(),
+                    chain_watcher,
+                    chain_broadcaster,
+                    event_notify.clone(),
+                    larva.clone(),
+                ).map(|_| Ok(()))
+            );
+
+            // TODO see below
+            // let _ = larva.clone().spawn_task(Box::new(
+            //     tokio::timer::Interval::new(Instant::now(), Duration::new(1, 0))
+            //         .for_each(move |_| {
+            //             //TODO: Regularly poll chain_monitor.txn_to_broadcast and send them out
+            //
+            //             future::ready(())
+            //         })
+            //         .map_err(|_| ())
+            // ));
+
+            let ln_manager = LnManager {
+                rpc_client,
+                network,
+                router,
+                event_notify,
+                channel_manager,
+                peer_manager,
+                payment_preimages,
+                secp_ctx,
+                keys,
+                settings,
+                larva,
+            };
+
+            Ok(ln_manager)
+        })
+    }
 }
+impl<T: Larva> Builder<T> for LnManager<T> {}
 
 fn get_seeds_from_time() -> (u64, u32) {
     let start = SystemTime::now();
