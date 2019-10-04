@@ -286,6 +286,7 @@ pub trait Builder<T: Larva> {
         })
     }
 }
+
 impl<T: Larva> Builder<T> for LnManager<T> {}
 
 fn get_seeds_from_time() -> (u64, u32) {
