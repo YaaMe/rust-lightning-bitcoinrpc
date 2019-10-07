@@ -40,6 +40,38 @@ pub struct Handler<T: Larva> {
     notifier: mpsc::Sender<()>,
 }
 impl<T: Larva> Handler<T> {
+    pub fn new(
+        network: constants::Network,
+        file_prefix: String,
+        rpc_client: Arc<RPCClient>,
+        peer_manager: Arc<peer_handler::PeerManager<SocketDescriptor<T>>>,
+        channel_manager: Arc<channelmanager::ChannelManager>,
+        monitor: Arc<channelmonitor::SimpleManyChannelMonitor<chain::transaction::OutPoint>>,
+        broadcaster: Arc<dyn chain::chaininterface::BroadcasterInterface>,
+        payment_preimages: Arc<Mutex<HashMap<PaymentHash, PaymentPreimage>>>,
+        notifier: mpsc::Sender<()>,
+    ) -> Handler<T> {
+        Handler {
+            network, file_prefix,
+            rpc_client, peer_manager,
+            channel_manager, monitor, broadcaster,
+            txn_to_broadcast: Mutex::new(HashMap::new()),
+            payment_preimages,
+            notifier,
+        }
+    }
+    pub fn file_prefix(&self) -> String {
+        self.file_prefix.clone()
+    }
+    pub fn peer_manager(&self) -> Arc<peer_handler::PeerManager<SocketDescriptor<T>>> {
+        self.peer_manager.clone()
+    }
+    pub fn channel_manager(&self) -> Arc<channelmanager::ChannelManager> {
+        self.channel_manager.clone()
+    }
+    pub fn monitor(&self) -> Arc<channelmonitor::SimpleManyChannelMonitor<chain::transaction::OutPoint>> {
+        self.monitor.clone()
+    }
     pub fn notifier(&self) -> mpsc::Sender<()> {
         self.notifier.clone()
     }

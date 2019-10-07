@@ -4,6 +4,8 @@ use futures::future::Future;
 use ln_manager::ln_bridge::settings::Settings as MgrSettings;
 use ln_manager::{LnManager, Builder};
 
+impl Builder<Probe> for LnManager<Probe> {}
+
 pub fn gen(
     arg: Vec<Arg>,
     exec: Probe,

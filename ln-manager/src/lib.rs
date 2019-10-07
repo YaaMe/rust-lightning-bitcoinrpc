@@ -1,13 +1,13 @@
 #![feature(async_closure)]
 extern crate base64;
-extern crate bitcoin;
+pub extern crate bitcoin;
 extern crate bitcoin_bech32;
 extern crate bitcoin_hashes;
 extern crate bytes;
 extern crate config;
 extern crate futures;
 extern crate hyper;
-extern crate lightning;
+pub extern crate lightning;
 extern crate lightning_invoice;
 extern crate num_traits;
 extern crate rand;
@@ -94,15 +94,10 @@ pub trait Builder<T: Larva> {
         larva: T,
     ) -> mpsc::Sender<()> {
         event_handler::setup(
-            network,
-            data_path,
-            rpc_client.clone(),
-            peer_manager.clone(),
-            monitor.clone(),
-            channel_manager.clone(),
-            chain_broadcaster.clone(),
-            payment_preimages.clone(),
-            larva.clone(),
+            network, data_path, rpc_client,
+            peer_manager, monitor, channel_manager, chain_broadcaster,
+            payment_preimages,
+            larva,
         )
     }
 
@@ -213,7 +208,7 @@ pub trait Builder<T: Larva> {
             let payment_preimages = Arc::new(Mutex::new(HashMap::new()));
 
             // clone for move (handle receiver)
-            let event_notify = LnManager::get_event_handler(
+            let event_notify = Self::get_event_handler(
                 network,
                 data_path,
                 rpc_client.clone(),
@@ -286,8 +281,6 @@ pub trait Builder<T: Larva> {
         })
     }
 }
-
-impl<T: Larva> Builder<T> for LnManager<T> {}
 
 fn get_seeds_from_time() -> (u64, u32) {
     let start = SystemTime::now();
