@@ -81,6 +81,13 @@ pub struct LnManager<T: Larva> {
 impl_command!(LnManager);
 pub type R<T> = Pin<Box<dyn Future<Output=Result<LnManager<T>, ()>> + Send>>;
 
+impl<T: Larva> LnManager<T> {
+  pub fn node_key_str(&self) -> String {
+    let secret = self.keys.get_node_secret();
+    ln_bridge::utils::hex_str(&PublicKey::from_secret_key(&Secp256k1::new(), &secret).serialize())
+  }
+}
+
 pub trait Builder<T: Larva> {
     fn get_event_handler(
         network: constants::Network,

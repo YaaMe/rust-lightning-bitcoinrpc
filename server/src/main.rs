@@ -1,7 +1,5 @@
 extern crate base64;
 extern crate bitcoin;
-extern crate bitcoin_bech32;
-extern crate bitcoin_hashes;
 extern crate bytes;
 extern crate config;
 extern crate failure;
@@ -13,7 +11,6 @@ extern crate ln_manager;
 extern crate num_traits;
 extern crate protocol;
 extern crate rand;
-extern crate secp256k1;
 extern crate serde_json;
 
 #[macro_use]

@@ -1,4 +1,3 @@
-use crate::lightning::chain::keysinterface::KeysInterface;
 use crate::ln_cmd::tasks::{Arg, Probe};
 use crate::ln_cmd::utils;
 use crate::ln_manager::ln_cmd::channel::ChannelC;
@@ -57,8 +56,7 @@ fn handle_msg(
                 protocol::ResponseFuncs::GetAddresses(addresses)
             }
             protocol::RequestFuncs::GetNodeInfo => {
-                let node_info = utils::node_info::get(&ln_mgr.keys.get_node_secret());
-                protocol::ResponseFuncs::GetNodeInfo(node_info)
+                protocol::ResponseFuncs::GetNodeInfo(ln_mgr.node_key_str())
             }
             protocol::RequestFuncs::PeerConnect(addr) => {
                 ln_mgr.connect(addr);
