@@ -1,4 +1,4 @@
-#![feature(async_closure)]
+// #![feature(async_closure)]
 extern crate base64;
 pub extern crate bitcoin;
 extern crate bitcoin_bech32;
@@ -43,7 +43,7 @@ use futures::channel::mpsc;
 use futures::{FutureExt, StreamExt};
 
 use bitcoin::network::constants;
-use lightning::chain::keysinterface::{KeysInterface, KeysManager};
+use lightning::chain::keysinterface::{KeysInterface, KeysManager, InMemoryChannelKeys};
 use lightning::chain;
 use lightning::ln::channelmanager::{ChannelManager, PaymentHash, PaymentPreimage};
 use lightning::ln::peer_handler::PeerManager;
@@ -53,7 +53,7 @@ use secp256k1::key::PublicKey;
 use secp256k1::{All, Secp256k1};
 
 use ln_bridge::connection::{Connection, SocketDescriptor};
-use ln_bridge::chain_monitor::{spawn_chain_monitor, ChainWatchInterfaceUtil, ChainBroadcaster, FeeEstimator};
+use ln_bridge::chain_monitor::{spawn_chain_monitor, BlockNotifier, ChainWatchInterfaceUtil, ChainBroadcaster, FeeEstimator};
 use ln_bridge::channel_monitor::ChannelMonitor;
 use ln_bridge::channel_manager::RestoreArgs as RestoreManagerArgs;
 use ln_bridge::event_handler;
@@ -69,7 +69,7 @@ pub struct LnManager<T: Larva> {
     pub network: constants::Network,
     pub router: Arc<router::Router>,
     pub event_notify: mpsc::Sender<()>,
-    pub channel_manager: Arc<ChannelManager>,
+    pub channel_manager: Arc<ChannelManager<'static, InMemoryChannelKeys>>,
     pub peer_manager: Arc<PeerManager<SocketDescriptor<T>>>,
     pub payment_preimages: Arc<Mutex<HashMap<PaymentHash, PaymentPreimage>>>,
     pub secp_ctx: Secp256k1<All>,
@@ -95,7 +95,7 @@ pub trait Builder<T: Larva> {
         rpc_client: Arc<RPCClient>,
         peer_manager: Arc<PeerManager<SocketDescriptor<T>>>,
         monitor: Arc<channelmonitor::SimpleManyChannelMonitor<chain::transaction::OutPoint>>,
-        channel_manager: Arc<ChannelManager>,
+        channel_manager: Arc<ChannelManager<'static, InMemoryChannelKeys>>,
         chain_broadcaster: Arc<dyn chain::chaininterface::BroadcasterInterface>,
         payment_preimages: Arc<Mutex<HashMap<PaymentHash, PaymentPreimage>>>,
         larva: T,
@@ -137,6 +137,8 @@ pub trait Builder<T: Larva> {
             let (import_key_1, import_key_2) = ln_bridge::key::get_import_secret_keys(network, &our_node_seed);
 
             let chain_watcher = Arc::new(ChainWatchInterfaceUtil::new(network, logger.clone()));
+            let block_notifier = Arc::new(BlockNotifier::new(chain_watcher.clone()));
+
             let chain_broadcaster = Arc::new(ChainBroadcaster::new(rpc_client.clone(),larva.clone()));
 
             let async_client = rpc_client.clone();
@@ -184,16 +186,19 @@ pub trait Builder<T: Larva> {
                 file_prefix: data_path.clone() + "/monitors",
             });
 
+            // TODO: get current_block_height to fill logic
+            let current_block_height = 0;
             let channel_manager = channelmanager::ChannelManager::try_restore(RestoreManagerArgs::new(
                 data_path.clone(),
                 monitors_loaded,
                 network.clone(),
                 fee_estimator.clone(),
                 monitor.clone(),
-                chain_watcher.clone(),
+                block_notifier.clone(),
                 chain_broadcaster.clone(),
                 logger.clone(),
                 keys.clone(),
+                current_block_height,
             ));
 
             let router = Arc::new(router::Router::new(
@@ -232,6 +237,7 @@ pub trait Builder<T: Larva> {
             info!("Lightning Port binded on 0.0.0.0:{}", &settings.lightning.port);
             let addr = &format!("0.0.0.0:{}", settings.lightning.port);
             let listener = tokio::net::tcp::TcpListener::bind(addr);
+            // let listener = tokio_net::tcp::TcpListener::bind(addr);
             let setup_larva = larva.clone();
             let _ = larva.clone().spawn_task(
                 listener.await.unwrap()
@@ -252,7 +258,7 @@ pub trait Builder<T: Larva> {
                 spawn_chain_monitor(
                     fee_estimator,
                     rpc_client.clone(),
-                    chain_watcher,
+                    block_notifier,
                     chain_broadcaster,
                     event_notify.clone(),
                     larva.clone(),

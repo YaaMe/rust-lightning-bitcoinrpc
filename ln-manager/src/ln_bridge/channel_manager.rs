@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use bitcoin::network::constants::Network;
 use bitcoin_hashes::sha256d::Hash;
 
-use lightning::chain::keysinterface::{KeysInterface};
-use lightning::chain::chaininterface::{FeeEstimator, ChainWatchInterface, BroadcasterInterface, ChainListener};
+use lightning::chain::keysinterface::{KeysInterface, InMemoryChannelKeys};
+use lightning::chain::chaininterface::{FeeEstimator, BroadcasterInterface, ChainListener, BlockNotifier};
 use lightning::chain::transaction::OutPoint;
 use lightning::ln::channelmanager::{ChannelManager, ChannelManagerReadArgs};
 use lightning::ln::channelmonitor::{ChannelMonitor, ManyChannelMonitor};
@@ -25,10 +25,11 @@ pub struct RestoreArgs {
     network: Network,
     fee_estimator: Arc<dyn FeeEstimator>,
     monitor: Arc<dyn ManyChannelMonitor>,
-    chain_watcher: Arc<dyn ChainWatchInterface>,
+    block_notifier: Arc<BlockNotifier<'static>>,
     tx_broadcaster: Arc<dyn BroadcasterInterface>,
     logger: Arc<dyn Logger>,
-    keys_manager: Arc<dyn KeysInterface>,
+    keys_manager: Arc<dyn KeysInterface<ChanKeySigner = InMemoryChannelKeys>>,
+    current_block_height: usize,
 }
 
 impl RestoreArgs {
@@ -38,22 +39,23 @@ impl RestoreArgs {
         network: Network,
         fee_estimator: Arc<dyn FeeEstimator>,
         monitor: Arc<dyn ManyChannelMonitor>,
-        chain_watcher: Arc<dyn ChainWatchInterface>,
+        block_notifier: Arc<BlockNotifier<'static>>,
         tx_broadcaster: Arc<dyn BroadcasterInterface>,
         logger: Arc<dyn Logger>,
-        keys_manager: Arc<dyn KeysInterface>,
+        keys_manager: Arc<dyn KeysInterface<ChanKeySigner = InMemoryChannelKeys>>,
+        current_block_height: usize,
     ) -> Self {
         RestoreArgs {
             data_path, monitors_loaded, network, fee_estimator,
-            monitor, chain_watcher, tx_broadcaster,
-            logger, keys_manager,
+            monitor, block_notifier, tx_broadcaster,
+            logger, keys_manager, current_block_height,
         }
     }
 }
 
-impl Restorable<RestoreArgs, Arc<ChannelManager>> for ChannelManager {
-    fn try_restore(args: RestoreArgs) -> Arc<ChannelManager> {
-        let mut config = UserConfig::new();
+impl Restorable<RestoreArgs, Arc<ChannelManager<'_, InMemoryChannelKeys>>> for ChannelManager<'_, InMemoryChannelKeys> {
+    fn try_restore(args: RestoreArgs) -> Arc<ChannelManager<'static, InMemoryChannelKeys>> {
+        let mut config = UserConfig::default();
         config.channel_options.fee_proportional_millionths = FEE_PROPORTIONAL_MILLIONTHS;
         config.channel_options.announced_channel = ANNOUNCE_CHANNELS;
 
@@ -63,11 +65,10 @@ impl Restorable<RestoreArgs, Arc<ChannelManager>> for ChannelManager {
                 for (outpoint, monitor) in args.monitors_loaded.iter() {
                     monitors_refs.insert(*outpoint, monitor);
                 }
-                <(Hash, ChannelManager)>::read(&mut f, ChannelManagerReadArgs {
+                <(Hash, ChannelManager<'_, InMemoryChannelKeys>)>::read(&mut f, ChannelManagerReadArgs {
                     keys_manager: args.keys_manager,
                     fee_estimator: args.fee_estimator,
                     monitor: args.monitor.clone(),
-                    chain_monitor: args.chain_watcher.clone(),
                     tx_broadcaster: args.tx_broadcaster,
                     logger: args.logger,
                     default_config: config,
@@ -84,7 +85,7 @@ impl Restorable<RestoreArgs, Arc<ChannelManager>> for ChannelManager {
             //TODO: Rescan
             let manager = Arc::new(manager);
             let manager_as_listener: Arc<dyn ChainListener> = manager.clone();
-            args.chain_watcher.register_listener(Arc::downgrade(&manager_as_listener));
+            args.block_notifier.register_listener(Arc::downgrade(&manager_as_listener));
             manager
         } else {
             if !args.monitors_loaded.is_empty() {
@@ -94,11 +95,11 @@ impl Restorable<RestoreArgs, Arc<ChannelManager>> for ChannelManager {
                 args.network,
                 args.fee_estimator,
                 args.monitor,
-                args.chain_watcher,
                 args.tx_broadcaster,
-                args.logger, 
-                args.keys_manager, 
-                config
+                args.logger,
+                args.keys_manager,
+                config,
+                args.current_block_height,
             ).unwrap()
         }
     }

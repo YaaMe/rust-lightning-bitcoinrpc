@@ -13,6 +13,7 @@ use bitcoin::network::constants;
 
 use lightning::chain;
 use lightning::chain::keysinterface::SpendableOutputDescriptor;
+use lightning::chain::keysinterface::InMemoryChannelKeys;
 use lightning::ln::channelmanager;
 use lightning::ln::channelmanager::{PaymentHash, PaymentPreimage};
 use lightning::ln::channelmonitor;
@@ -32,7 +33,7 @@ pub struct Handler<T: Larva> {
     file_prefix: String,
     rpc_client: Arc<RPCClient>,
     peer_manager: Arc<peer_handler::PeerManager<SocketDescriptor<T>>>,
-    channel_manager: Arc<channelmanager::ChannelManager>,
+    channel_manager: Arc<channelmanager::ChannelManager<'static, InMemoryChannelKeys>>,
     monitor: Arc<channelmonitor::SimpleManyChannelMonitor<chain::transaction::OutPoint>>,
     broadcaster: Arc<dyn chain::chaininterface::BroadcasterInterface>,
     txn_to_broadcast: Mutex<HashMap<chain::transaction::OutPoint, blockdata::transaction::Transaction>>,
@@ -45,7 +46,7 @@ impl<T: Larva> Handler<T> {
         file_prefix: String,
         rpc_client: Arc<RPCClient>,
         peer_manager: Arc<peer_handler::PeerManager<SocketDescriptor<T>>>,
-        channel_manager: Arc<channelmanager::ChannelManager>,
+        channel_manager: Arc<channelmanager::ChannelManager<'static, InMemoryChannelKeys>>,
         monitor: Arc<channelmonitor::SimpleManyChannelMonitor<chain::transaction::OutPoint>>,
         broadcaster: Arc<dyn chain::chaininterface::BroadcasterInterface>,
         payment_preimages: Arc<Mutex<HashMap<PaymentHash, PaymentPreimage>>>,
@@ -66,7 +67,7 @@ impl<T: Larva> Handler<T> {
     pub fn peer_manager(&self) -> Arc<peer_handler::PeerManager<SocketDescriptor<T>>> {
         self.peer_manager.clone()
     }
-    pub fn channel_manager(&self) -> Arc<channelmanager::ChannelManager> {
+    pub fn channel_manager(&self) -> Arc<channelmanager::ChannelManager<'static, InMemoryChannelKeys>> {
         self.channel_manager.clone()
     }
     pub fn monitor(&self) -> Arc<channelmonitor::SimpleManyChannelMonitor<chain::transaction::OutPoint>> {
@@ -83,7 +84,7 @@ pub fn setup<T: Larva>(
     rpc_client: Arc<RPCClient>,
     peer_manager: Arc<peer_handler::PeerManager<SocketDescriptor<T>>>,
     monitor: Arc<channelmonitor::SimpleManyChannelMonitor<chain::transaction::OutPoint>>,
-    channel_manager: Arc<channelmanager::ChannelManager>,
+    channel_manager: Arc<channelmanager::ChannelManager<'static, InMemoryChannelKeys>>,
     broadcaster: Arc<dyn chain::chaininterface::BroadcasterInterface>,
     payment_preimages: Arc<Mutex<HashMap<PaymentHash, PaymentPreimage>>>,
     // outbound_sender: Option<mpsc::UnboundedSender<Event>>,
@@ -184,7 +185,7 @@ pub async fn handle_event<T: Larva>(event: Event, inner: Arc<Handler<T>>, larva:
         Event::PaymentReceived { payment_hash, amt } => {
             let images = inner.payment_preimages.lock().unwrap();
             if let Some(payment_preimage) = images.get(&payment_hash) {
-                if inner.channel_manager.claim_funds(payment_preimage.clone()) {
+                if inner.channel_manager.claim_funds(payment_preimage.clone(), amt) {
                     info!("Payment received: {} msat id {}", amt, hex_str(&payment_hash.0));
                 } else {
                     info!("Failed to claim money we were told we had?");

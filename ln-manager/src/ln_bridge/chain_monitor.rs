@@ -17,7 +17,7 @@ use futures::executor::block_on;
 use futures_timer::Interval;
 
 use lightning::chain::chaininterface;
-pub use lightning::chain::chaininterface::{ChainWatchInterface, ChainWatchInterfaceUtil};
+pub use lightning::chain::chaininterface::{ChainWatchInterface, ChainWatchInterfaceUtil, BlockNotifier};
 
 use bitcoin::blockdata::block::Block;
 use bitcoin::consensus::encode;
@@ -353,7 +353,7 @@ async fn find_fork(
 pub async fn spawn_chain_monitor(
     fee_estimator: Arc<FeeEstimator>,
     rpc_client: Arc<RPCClient>,
-    chain_watcher: Arc<ChainWatchInterfaceUtil>,
+    block_notifier: Arc<BlockNotifier<'static>>,
     chain_broadcaster: Arc<ChainBroadcaster<impl Larva>>,
     event_notify: mpsc::Sender<()>,
     larva: impl Larva,
@@ -370,7 +370,7 @@ pub async fn spawn_chain_monitor(
             let cur_block = cur_block.clone();
             let fee_estimator = fee_estimator.clone();
             let rpc_client = rpc_client.clone();
-            let chain_watcher = chain_watcher.clone();
+            let block_notifier = block_notifier.clone();
             let chain_broadcaster = chain_broadcaster.clone();
             let mut event_notify = event_notify.clone();
             let larva = larva.clone();
@@ -401,12 +401,12 @@ pub async fn spawn_chain_monitor(
 
                 let actions = events.into_iter().rev().map(|event| {
                     let client = rpc_client.clone();
-                    let watcher = chain_watcher.clone();
+                    let notifier = block_notifier.clone();
                     async move {
                         match event {
                             ForkStep::DisconnectBlock(ref header, height) => {
                                 info!("Disconnecting block {}", header.bitcoin_hash().to_hex());
-                                watcher.block_disconnected(header, height);
+                                notifier.block_disconnected(header, height);
                             }
                             ForkStep::ConnectBlock((ref hash, height)) => {
                                 let block_height = height;
@@ -415,7 +415,7 @@ pub async fn spawn_chain_monitor(
                                 let block: Block = encode::deserialize(
                                     &hex_to_vec(block_hex.unwrap().as_str().unwrap()).unwrap()
                                 ).unwrap();
-                                watcher.block_connected_with_filtering(&block, block_height);
+                                notifier.block_connected(&block, block_height);
                                 info!("Connecting block {}, Height: {}", block.bitcoin_hash().to_hex(), &block_height);
                             }
                         }

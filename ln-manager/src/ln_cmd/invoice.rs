@@ -1,7 +1,7 @@
 use bitcoin::network::constants::Network;
 use bitcoin_hashes::Hash;
 use futures::channel::mpsc;
-use lightning::chain::keysinterface::{KeysInterface, KeysManager};
+use lightning::chain::keysinterface::{KeysInterface, KeysManager, InMemoryChannelKeys};
 use lightning::ln::channelmanager::{ChannelManager, PaymentHash, PaymentPreimage};
 use lightning::ln::router;
 use lightning_invoice::Invoice;
@@ -23,7 +23,7 @@ pub trait InvoiceC {
 
 pub fn pay(
     args: Vec<String>,
-    channel_manager: &Arc<ChannelManager>,
+    channel_manager: &Arc<ChannelManager<'_, InMemoryChannelKeys>>,
     mut event_notify: mpsc::Sender<()>,
     network: &Network,
     router: &Arc<router::Router>,

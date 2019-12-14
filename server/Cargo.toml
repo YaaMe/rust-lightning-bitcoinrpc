@@ -6,7 +6,7 @@ build = "build.rs"
 edition = "2018"
 
 [dependencies]
-bitcoin = "0.20"
+bitcoin = "0.21"
 lightning = { git = "https://github.com/rust-bitcoin/rust-lightning.git", branch = "master" }
 lightning-invoice = { git = "https://github.com/knarfytrebil/rust-lightning-invoice.git" }
 hyper = "=0.13.0-alpha.4"
