@@ -11,15 +11,13 @@ bitcoin-bech32 = "0.7"
 bitcoin_hashes = "0.7"
 lightning = { git = "https://github.com/rust-bitcoin/rust-lightning.git", branch = "master" }
 lightning-invoice = { git = "https://github.com/knarfytrebil/rust-lightning-invoice.git" }
-# lightning-invoice = { path = "../../rust-lightning-invoice" }
 secp256k1 = "0.15"
-# hyper = { git = "https://github.com/hyperium/hyper.git", branch = "master" }
-hyper = { version = "=0.13.0-alpha.4", features = ["unstable-stream"] }
+hyper = { version = "0.13.0-alpha.4", default-features = false, features = ["unstable-stream"] }
 tokio-io = "=0.2.0-alpha.6"
 tokio-fs = "=0.2.0-alpha.6"
 tokio-codec = "=0.2.0-alpha.6"
 tokio-net = { version = "=0.2.0-alpha.6", features = ["async-traits"] }
-tokio = "=0.2.0-alpha.6"
+tokio = "0.2.0-alpha.6"
 futures-timer = "0.4.0"
 futures = { package = "futures-preview", version = "0.3.0-alpha.19" }
 serde = { version = "1.0", features = ["derive"] }
