@@ -1,7 +1,7 @@
 use super::rpc_client::{GetHeaderResponse, RPCClient};
 use super::utils::hex_to_vec;
 
-use tokio::runtime::current_thread::Runtime;
+use tokio::runtime::Runtime;
 use std::thread;
 
 use bitcoin;

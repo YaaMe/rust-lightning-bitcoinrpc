@@ -14,6 +14,7 @@ extern crate rand;
 extern crate secp256k1;
 extern crate serde_json;
 extern crate tokio;
+extern crate tokio_util;
 extern crate tokio_codec;
 extern crate tokio_fs;
 extern crate tokio_io;
@@ -236,7 +237,7 @@ pub trait Builder<T: Larva> {
             let event_listener = event_notify.clone();
             info!("Lightning Port binded on 0.0.0.0:{}", &settings.lightning.port);
             let addr = &format!("0.0.0.0:{}", settings.lightning.port);
-            let listener = tokio::net::tcp::TcpListener::bind(addr);
+            let listener = tokio_net::tcp::TcpListener::bind(addr);
             // let listener = tokio_net::tcp::TcpListener::bind(addr);
             let setup_larva = larva.clone();
             let _ = larva.clone().spawn_task(

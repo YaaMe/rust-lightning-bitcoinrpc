@@ -1,4 +1,6 @@
+
 use bytes::BufMut;
+use bytes::Bytes;
 
 use futures::future;
 use futures::{FutureExt, StreamExt, SinkExt};
@@ -8,7 +10,9 @@ use futures::channel::mpsc;
 use secp256k1::key::PublicKey;
 
 // use tokio::timer::Delay;
-use tokio::net::tcp::TcpStream;
+
+use tokio_net::tcp::TcpStream;
+use tokio_codec::{Framed, BytesCodec};
 
 use lightning::ln::peer_handler;
 use lightning::ln::peer_handler::SocketDescriptor as LnSocketTrait;
@@ -28,7 +32,7 @@ static ID_COUNTER: AtomicU64 = AtomicU64::new(0);
 /// A connection to a remote peer. Can be constructed either as a remote connection using
 /// Connection::setup_outbound o
 pub struct Connection {
-    writer: Option<mpsc::Sender<bytes::Bytes>>,
+    writer: Option<mpsc::Sender<Bytes>>,
     event_notify: mpsc::Sender<()>,
     pending_read: Vec<u8>,
     read_blocker: Option<futures::channel::oneshot::Sender<Result<(), ()>>>,
@@ -41,7 +45,7 @@ impl Connection {
     fn schedule_read<T: Larva>(
         peer_manager: Arc<peer_handler::PeerManager<SocketDescriptor<T>>>,
         this: Arc<Mutex<Self>>,
-        reader: futures::stream::SplitStream<tokio_codec::Framed<TcpStream, tokio_codec::BytesCodec>>,
+        reader: futures::stream::SplitStream<Framed<TcpStream, BytesCodec>>,
         larva: T
     ) {
         let this_ref = this.clone();
@@ -120,8 +124,8 @@ impl Connection {
     }
 
     fn new(event_notify: mpsc::Sender<()>, stream: TcpStream, larva: &impl Larva) ->
-        (futures::stream::SplitStream<tokio_codec::Framed<TcpStream, tokio_codec::BytesCodec>>, Arc<Mutex<Self>>) {
-            let (mut writer, reader) = tokio_codec::Framed::new(stream, tokio_codec::BytesCodec::new()).split();
+        (futures::stream::SplitStream<Framed<TcpStream, BytesCodec>>, Arc<Mutex<Self>>) {
+            let (mut writer, reader) = Framed::new(stream, BytesCodec::new()).split();
             let (send_sink, mut send_stream) = mpsc::channel(3);
             let _ = larva.spawn_task(async move {
                 let _ = writer.send_all(

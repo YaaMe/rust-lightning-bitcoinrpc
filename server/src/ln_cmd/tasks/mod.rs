@@ -1,19 +1,19 @@
 pub mod ln_mgr;
 pub mod node;
 pub mod udp_srv;
-use futures::future::Future;
+use futures::future::{Future, FutureExt};
 use futures::task::{Context, Poll};
-use futures::FutureExt;
 
 use crate::ln_node::settings::Settings as NodeSettings;
 use ln_manager::executor::Larva;
 use ln_manager::ln_bridge::settings::Settings as MgrSettings;
+use tokio::runtime::Handle;
 
 use std::pin::Pin;
 
 pub type TaskFn = dyn Fn(Vec<Arg>, Probe) -> Result<(), String>;
 pub type TaskGen = fn() -> Box<TaskFn>;
-pub type Executor = tokio::runtime::TaskExecutor;
+// pub type TaskSender = mpsc::UnboundedSender<Box<dyn Future<Output = Result<(), ()>> + Send + Unpin>>;
 
 #[derive(Clone, Debug)]
 pub enum Arg {
@@ -55,12 +55,12 @@ impl Future for Action {
 
 #[derive(Clone)]
 pub struct Probe {
-    exec: Executor,
+    handle: Handle
 }
 
 impl Probe {
-    pub fn new(exec: Executor) -> Self {
-        Probe { exec: exec }
+    pub fn new(handle: Handle) -> Self {
+        Probe { handle }
     }
 }
 
@@ -69,7 +69,8 @@ impl Larva for Probe {
         &self,
         task: impl Future<Output = Result<(), ()>> + Send + 'static,
     ) -> Result<(), futures::task::SpawnError> {
-        self.exec.spawn(task.map(|_| ()));
+        // let _ = self.sender.unbounded_send(Box::new(Box::pin(task)));
+        self.handle.spawn(task.map(|_| ()));
         Ok(())
     }
 }

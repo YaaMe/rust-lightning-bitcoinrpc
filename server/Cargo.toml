@@ -9,7 +9,7 @@ edition = "2018"
 bitcoin = "0.21"
 lightning = { git = "https://github.com/rust-bitcoin/rust-lightning.git", branch = "master" }
 lightning-invoice = { git = "https://github.com/knarfytrebil/rust-lightning-invoice.git" }
-hyper = "=0.13.0-alpha.4"
+hyper = { version = "0.13.0-alpha.4", default-features = false, features = ["unstable-stream", "tcp"] }
 futures = { package = "futures-preview", version = "0.3.0-alpha.19" }
 serde = "1"
 serde_json = "1"
@@ -22,7 +22,7 @@ num-traits = "0.2"
 config = "0.9.2"
 log = "0.4"
 simplelog = "^0.6.0"
-tokio = { version = "=0.2.0-alpha.6" }
+tokio = { version = "0.2.4", features = ["net", "time", "stream"] }
 ln-manager = { path = "../ln-manager" }
 protocol = { path = "../protocol" }
 failure = "0.1.5"
