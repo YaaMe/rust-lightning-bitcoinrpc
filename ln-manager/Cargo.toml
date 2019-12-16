@@ -20,7 +20,6 @@ tokio-codec = "0.2.0-alpha.6"
 tokio-net = { version = "=0.2.0-alpha.6", features = ["async-traits"] }
 # tokio = "0.2.0-alpha.6"
 tokio = { version = "0.2.4", features = ["net", "time", "stream"] }
-# tokio = { path = "../../tokio/tokio" }
 futures-timer = "0.4.0"
 futures = { package = "futures-preview", version = "0.3.0-alpha.19" }
 serde = { version = "1.0", features = ["derive"] }
