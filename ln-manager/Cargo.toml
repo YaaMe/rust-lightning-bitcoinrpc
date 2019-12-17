@@ -13,12 +13,11 @@ lightning = { git = "https://github.com/rust-bitcoin/rust-lightning.git", branch
 lightning-invoice = { git = "https://github.com/knarfytrebil/rust-lightning-invoice.git" }
 secp256k1 = "0.15"
 hyper = { version = "0.13.0-alpha.4", default-features = false, features = ["unstable-stream", "tcp"] }
-tokio-io = "=0.2.0-alpha.6"
-tokio-fs = "=0.2.0-alpha.6"
+tokio-io = "0.2.0-alpha.6"
+tokio-fs = "0.2.0-alpha.6"
 tokio-util = { version = "0.2.0-alpha.6", features = ["codec"] }
 tokio-codec = "0.2.0-alpha.6"
-tokio-net = { version = "=0.2.0-alpha.6", features = ["async-traits"] }
-# tokio = "0.2.0-alpha.6"
+tokio-net = { version = "0.2.0-alpha.6", features = ["async-traits"] }
 tokio = { version = "0.2.4", features = ["net", "time", "stream"] }
 futures-timer = "0.4.0"
 futures = { package = "futures-preview", version = "0.3.0-alpha.19" }
@@ -26,7 +25,6 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_derive = "1.0"
 rand = "0.4"
-# bytes = "0.4"
 bytes = { version = "0.4", features = ["serde"] }
 base64 = "0.9"
 num-derive = "0.2"
