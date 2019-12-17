@@ -1,4 +1,4 @@
-FROM jasongop/rust-wasm32:1.39.0-nightly as rustenv
+FROM jasongop/rust-wasm32:1.41.0-nightly as rustenv
 
 RUN set -x \
   && apt-get update \
