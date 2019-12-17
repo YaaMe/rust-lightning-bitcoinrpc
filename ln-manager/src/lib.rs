@@ -1,4 +1,5 @@
 #![feature(async_closure)]
+#![feature(const_slice_len)]
 extern crate base64;
 pub extern crate bitcoin;
 extern crate bitcoin_bech32;
