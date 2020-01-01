@@ -353,7 +353,7 @@ async fn find_fork(
 pub async fn spawn_chain_monitor(
     fee_estimator: Arc<FeeEstimator>,
     rpc_client: Arc<RPCClient>,
-    block_notifier: Arc<BlockNotifier<'static>>,
+    block_notifier: Arc<BlockNotifier>,
     chain_broadcaster: Arc<ChainBroadcaster<impl Larva>>,
     event_notify: mpsc::Sender<()>,
     larva: impl Larva,

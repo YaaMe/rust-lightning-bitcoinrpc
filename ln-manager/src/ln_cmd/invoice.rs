@@ -23,7 +23,7 @@ pub trait InvoiceC {
 
 pub fn pay(
     args: Vec<String>,
-    channel_manager: &Arc<ChannelManager<'_, InMemoryChannelKeys>>,
+    channel_manager: &Arc<ChannelManager<InMemoryChannelKeys>>,
     mut event_notify: mpsc::Sender<()>,
     network: &Network,
     router: &Arc<router::Router>,

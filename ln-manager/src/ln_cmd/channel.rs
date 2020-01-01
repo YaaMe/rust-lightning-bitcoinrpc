@@ -16,7 +16,7 @@ pub trait ChannelC {
 // fund channel
 pub fn fund_channel (
     args: Vec<String>,
-    channel_manager: &Arc<ChannelManager<'_, InMemoryChannelKeys>>,
+    channel_manager: &Arc<ChannelManager<InMemoryChannelKeys>>,
     mut event_notify: mpsc::Sender<()>,
 ) -> Result<String, String> {
     let pubkey_str = &args[0];
@@ -51,7 +51,7 @@ pub fn fund_channel (
 // Close single channel
 pub fn close(
     ch_id: String,
-    channel_manager: &Arc<ChannelManager<'_, InMemoryChannelKeys>>,
+    channel_manager: &Arc<ChannelManager<InMemoryChannelKeys>>,
     mut event_notify: mpsc::Sender<()>,
 ) -> Result<String, String> {
     if ch_id.len() == 64 {
@@ -81,12 +81,12 @@ pub fn close(
 }
 
 // Force close all channels
-pub fn force_close_all(channel_manager: &Arc<ChannelManager<'_, InMemoryChannelKeys>>) {
+pub fn force_close_all(channel_manager: &Arc<ChannelManager<InMemoryChannelKeys>>) {
     channel_manager.force_close_all_channels();
 }
 
 // List existing channels
-pub fn channel_list( channel_manager: &Arc<ChannelManager<'_, InMemoryChannelKeys>>, mode: &str) -> Vec<String> {
+pub fn channel_list( channel_manager: &Arc<ChannelManager<InMemoryChannelKeys>>, mode: &str) -> Vec<String> {
     let channels = match mode {
         "live" => { channel_manager.list_usable_channels() }
         "all" | _ => { channel_manager.list_channels() }

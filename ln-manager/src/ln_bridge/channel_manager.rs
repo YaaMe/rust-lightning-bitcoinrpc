@@ -25,7 +25,7 @@ pub struct RestoreArgs {
     network: Network,
     fee_estimator: Arc<dyn FeeEstimator>,
     monitor: Arc<dyn ManyChannelMonitor>,
-    block_notifier: Arc<BlockNotifier<'static>>,
+    block_notifier: Arc<BlockNotifier>,
     tx_broadcaster: Arc<dyn BroadcasterInterface>,
     logger: Arc<dyn Logger>,
     keys_manager: Arc<dyn KeysInterface<ChanKeySigner = InMemoryChannelKeys>>,
@@ -39,7 +39,7 @@ impl RestoreArgs {
         network: Network,
         fee_estimator: Arc<dyn FeeEstimator>,
         monitor: Arc<dyn ManyChannelMonitor>,
-        block_notifier: Arc<BlockNotifier<'static>>,
+        block_notifier: Arc<BlockNotifier>,
         tx_broadcaster: Arc<dyn BroadcasterInterface>,
         logger: Arc<dyn Logger>,
         keys_manager: Arc<dyn KeysInterface<ChanKeySigner = InMemoryChannelKeys>>,
@@ -53,26 +53,26 @@ impl RestoreArgs {
     }
 }
 
-impl Restorable<RestoreArgs, Arc<ChannelManager<'_, InMemoryChannelKeys>>> for ChannelManager<'_, InMemoryChannelKeys> {
-    fn try_restore(args: RestoreArgs) -> Arc<ChannelManager<'static, InMemoryChannelKeys>> {
+impl Restorable<RestoreArgs, Arc<ChannelManager<InMemoryChannelKeys>>> for ChannelManager<InMemoryChannelKeys> {
+    fn try_restore(mut args: RestoreArgs) -> Arc<ChannelManager<InMemoryChannelKeys>> {
         let mut config = UserConfig::default();
         config.channel_options.fee_proportional_millionths = FEE_PROPORTIONAL_MILLIONTHS;
         config.channel_options.announced_channel = ANNOUNCE_CHANNELS;
 
         if let Ok(mut f) = fs::File::open(args.data_path + "/manager_data") {
             let (_last_block_hash, manager) = {
-                let mut monitors_refs = HashMap::new();
-                for (outpoint, monitor) in args.monitors_loaded.iter() {
+                let mut monitors_refs = HashMap::<OutPoint, &mut ChannelMonitor>::new();
+                for (outpoint, monitor) in args.monitors_loaded.iter_mut() {
                     monitors_refs.insert(*outpoint, monitor);
                 }
-                <(Hash, ChannelManager<'_, InMemoryChannelKeys>)>::read(&mut f, ChannelManagerReadArgs {
+                <(Hash, ChannelManager<InMemoryChannelKeys>)>::read(&mut f, ChannelManagerReadArgs {
                     keys_manager: args.keys_manager,
                     fee_estimator: args.fee_estimator,
                     monitor: args.monitor.clone(),
                     tx_broadcaster: args.tx_broadcaster,
                     logger: args.logger,
                     default_config: config,
-                    channel_monitors: &monitors_refs,
+                    channel_monitors: &mut monitors_refs,
                 }).expect("Failed to deserialize channel manager")
             };
 
